@@ -8,18 +8,8 @@
 
 namespace Hoathis\Geofencing;
 
-final class GeoPoint
+final class GeoPoint extends Point
 {
-    /**
-     * @var float
-     */
-    public $latitude;
-
-    /**
-     * @var float
-     */
-    public $longitude;
-
     /**
      * GeoPoint constructor.
      *
@@ -28,19 +18,22 @@ final class GeoPoint
      */
     public function __construct(float $latitude, float $longitude)
     {
-        $this->latitude = $latitude;
-        $this->longitude = $longitude;
+        parent::__construct($longitude, $latitude);
     }
 
     /**
-     * @param GeoPoint $geoPoint
-     *
-     * @return bool
+     * @return float
      */
-    public function equals(self $geoPoint): bool
+    public function getLatitude()
     {
-        return $this->latitude === $geoPoint->latitude
-            && $this->longitude === $geoPoint->longitude
-            ;
+        return $this->y;
+    }
+
+    /**
+     * @return float
+     */
+    public function getLongitude()
+    {
+        return $this->x;
     }
 }

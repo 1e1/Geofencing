@@ -4,43 +4,50 @@
  * User: AyGLR
  * Date: 10/03/16
  * Time: 17:30.
+ *
+ *
+ * source: http://assemblysys.com/php-point-in-polygon-algorithm/
  */
 
 namespace Hoathis\Geofencing;
 
 final class Geofencing
 {
+    const OUTSIDE = -1;
+    const BOUNDARY = 0;
+    const INSIDE = 1;
+
     /**
-     * @var GeoPoint[]
+     * @var Point[]
      */
-    private $geoPoints;
+    private $points;
 
     public function __construct()
     {
-        $this->geoPoints = [];
+        $this->points = [];
     }
 
     /**
-     * @param GeoPoint $geoPoint
+     * @param Point $point
      *
      * @return self
      */
-    public function addGeoPoint(GeoPoint $geoPoint): self
+    public function addPoint(Point $point): self
     {
-        $this->geoPoints[] = $geoPoint;
+        $this->points[] = $point;
 
         return $this;
     }
 
     /**
-     * @param array $geoPoints
+     * @param array $points
      * @param bool  $autoClose
      *
      * @return self
      */
-    public function setGeoPoints(array $geoPoints, bool $autoClose = true): self
+    public function setPoints(array $points, bool $autoClose = true): self
     {
-        $this->geoPoints = $geoPoints;
+        $this->points = $points;
 
         if (true === $autoClose) {
             $this->close();
@@ -54,11 +61,9 @@ final class Geofencing
      */
     public function isClosed(): bool
     {
-        $firstGeoPoint = reset($this->geoPoints);
-        $lastGeoPoint = end($this->geoPoints);
-
-        return isset($this->geoPoints[2])
-            && $firstGeoPoint->equals($lastGeoPoint);
+        return isset($this->points[2])
+            && reset($this->points) == end($this->points)
+            ;
     }
 
     /**
@@ -67,7 +72,7 @@ final class Geofencing
     public function close(): self
     {
         if (!$this->isClosed()) {
-            $this->geoPoints[] = reset($this->geoPoints);
+            $this->points[] = reset($this->points);
         }
 
         return $this;
@@ -76,44 +81,74 @@ final class Geofencing
     /**
      * @return int
      */
-    public function getSize(): integer
+    public function getSize(): int
     {
-        return count($this->geoPoints) - 1;
+        return count($this->points) - 1;
     }
 
     /**
-     * @param GeoPoint $geoPoint
+     * @param Point $point
      *
-     * @return bool
+     * @return int
      */
-    public function isInclude(GeoPoint $geoPoint): bool
+    public function getPosition(Point $point): int
     {
-        $isInclude = false;
-        $nbPoints = count($this->geoPoints);
+        $intersections = 0;
+        $index = 0;
+        $length = $this->getSize();
 
-        for ($i = 0, $j = $nbPoints; $i < $nbPoints; $j = $i++) {
-            $p = $i;
+        while ($index < $length) {
+            $point1 = $this->points[$index];
+            $point2 = $this->points[++$index];
 
-            if ($nbPoints === $p) {
-                $p = 0;
+            $x = $point->x;
+            $y = $point->y;
+
+            $x1 = $point1->x;
+            $y1 = $point1->y;
+
+            $x2 = $point2->x;
+            $y2 = $point2->y;
+
+            if ($x1 < $x2) {
+                $x_min = $x1;
+                $x_max = $x2;
+            } else {
+                $x_min = $x2;
+                $x_max = $x1;
             }
 
-            $cornerA = $this->geoPoints[$p];
-            $cornerB = $this->geoPoints[$j];
+            // check if point is on an horizontal polygon boundary
+            if ($y1 === $y2 && $y1 === $y && $x > $x_min && $x < $x_max) {
+                return self::BOUNDARY;
+            }
 
-            if (($cornerA->latitude  >  $geoPoint->latitude) !== ($cornerB->latitude > $geoPoint->latitude)) {
-                $tg = ($cornerB->longitude - $cornerA->longitude)
-                    * ($geoPoint->latitude - $cornerA->latitude)
-                    / ($cornerB->latitude - $cornerA->latitude)
-                    + $cornerA->longitude
-                ;
+            if ($y1 < $y2) {
+                $y_min = $y1;
+                $y_max = $y2;
+            } else {
+                $y_min = $y2;
+                $y_max = $y1;
+            }
 
-                if ($geoPoint->longitude < $tg) {
-                    $isInclude = !$isInclude;
+            if ($y > $y_min && $y <= $y_max && $x <= $x_max && $y1 !== $y2) {
+                $xi = ($y - $y1) * ($x2 - $x1) / ($y2 - $y1) + $x1;
+
+                // check if point is on the polygon boundary (other than horizontal)
+                if ($xi === $x) {
+                    return self::BOUNDARY;
+                }
+
+                if ($x1 === $x2 || $x <= $xi) {
+                    ++$intersections;
                 }
             }
         }
 
-        return $isInclude;
+        // if the number of edges we passed through is odd, then it's in the polygon.
+        return (0 === $intersections % 2)
+            ? self::OUTSIDE
+            : self::INSIDE
+            ;
     }
 }
